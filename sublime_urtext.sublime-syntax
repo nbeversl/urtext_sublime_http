@@ -1,0 +1,435 @@
+%YAML 1.2
+---
+name: Urtext
+file_extensions: 
+  - txt
+scope: urtext
+
+contexts:
+  main: 
+    - include: syntax-main
+    - match: '(?<!\\){'
+      scope: punctuation.section.braces.begin.inline_node_1.urtext
+      push: inline-node-1
+    - match: '(?<!\\)}'
+      scope: invalid.illegal.stray-bracket-end
+  
+  syntax-main:    
+    - include: node_pointer
+    - include: node_link
+    - include: link_prefix
+    - include: other-project-link
+    - include: file_link
+
+    - match: \[\[
+      scope: punctuation.section.braces.begin.dynamic_definition.urtext
+      push: dynamic-definition
+
+    - include: node_title
+    - include: raw
+    - include: ending_node_id
+    - include: compact-node-opener
+
+    - match: '\|\s'
+      push: link_title
+    
+   
+    - match: '(?<=::)'
+      push: metadata-value
+
+    - match: '(?<=::)<'
+      push: metadata-timestamp
+    
+    - match:  \w+?(?=::)
+      scope: urtext.meta_key
+
+    - match: '(?<=\w)::'
+      scope: urtext.meta_separator
+
+    - match: <[^!\s-]
+      push: datestamp
+
+    - match: <!!
+      push: system-message
+      
+    # Embedded Syntaxes
+    - match: '%%-PYTHON'
+      scope: urtext.pass_marker
+      embed: Packages/Python/Python.sublime-syntax
+      embed_scope: urtext.python
+      escape: '%%-END-PYTHON'
+      escape-captures: 0
+    
+    - match: '%%-HTML'
+      scope: urtext.pass_marker
+      embed: Packages/HTML/HTML.sublime-syntax
+      embed_scope: urtext.html
+      escape: '%%-END-HTML'
+
+      escape_captures: 0
+    
+    - match: '%%-JSON'
+      scope: urtext.pass_marker
+      embed: Packages/JSON/JSON.sublime-syntax
+      embed_scope: urtext.json
+      escape: '%%-END-JSON'
+      escape_captures: 0
+
+    - match: '%%-PLAINTEXT'
+      scope: urtext.pass_marker
+      embed: Packages/JavaScript/text.sublime-syntax
+      embed_scope: urtext.text
+      escape: '%%-END-PLAINTEXT'
+      escape_captures: 0
+
+    - match: '%%-DOC'
+      scope: urtext.pass_marker
+      escape: '%%-END-DOC'
+      escape_captures: 0
+
+    - match: '%%-[A-Z-]*'
+      scope: urtext.pass_marker
+      embed_scope: urtext.text
+      escape: '%%-END-[A-Z-]*'
+      escape_captures: 0
+
+  
+  # Metadata  
+  metadata-value:
+    - meta_scope: urtext.meta_value
+    - match: <
+      push: datestamp
+    - include: tagvalue-separator
+    - include: node_link
+    - include: file_link    
+    - match: ;|\n|(?=( [a-z,0-9]{3})?\})
+      pop: true
+
+      
+  datestamp:
+    - meta_scope: entity.name.struct.datestamp.urtext
+    - match: '>'
+      pop: true
+
+  system-message:
+    - meta_scope: entity.name.struct.message.urtext
+    - match: '!!>'
+      pop: true
+
+  metadata-timestamp:
+    - meta_scope: entity.name.struct.datestamp.urtext
+    - match: '>'
+      set: metadata-value
+
+  # Dynamic Definition Closing Wrapper
+
+  dynamic-definition:
+    - meta_scope: dynamic-definition
+    
+    - match: '\|[^<][^\s]{2}'
+      push: link_title
+
+    - include: node_link
+    - include: file_link
+    - include: raw
+
+    - match: (\+|\-|INCLUDE|EXCLUDE|SORT|COLLECT)(?=\()
+      scope: function-name.urtext
+      push: function-with-key-values
+    
+    - match: (SHOW)(?=\()
+      scope: function-name.urtext
+      push: function-with-format-string
+    
+    - match: (FORMAT|LIMIT|DEPTH)(?=\()
+      scope: function-name.urtext
+      push: function-with-keywords-only
+   
+    - match: (ID|EXPORT)(?=\()
+      scope: function-name.urtext
+      push: function-with-node-id
+    
+    - match: (HEADER|FOOTER)(?=\()
+      scope: function-name.urtext
+      push: function-with-node-syntax
+
+    - match: \]\]
+      scope: punctuation.section.braces.end.dynamic_definition.urtext
+      pop: true
+   
+  # Functions using key-value pairs, values with string literals, and keywords
+  # INCLUDE, EXCLUDE
+
+  function-with-key-values:    
+    - match: \(
+      scope: dynamic-definition-parens
+      push: function-key-value-keyword-parameters
+    - match: (?<=\))
+      pop: true
+
+  function-with-node-syntax:
+    - match: \(
+      scope: dynamic-definition-parens
+      push: function-node-syntax
+    - match: (?<=\))
+      pop: true
+
+  function-node-syntax:
+    - meta_scope: node_syntax_in_param.urtext
+    - include: node_link
+    - match:  \w+?(?=::)
+      scope: urtext.meta_key
+    - include: link_prefix
+    
+    - include: other-project-link
+    - include: compact-node-opener
+    - include: ending_node_id
+    # - match: '(?<=::)([^\)])*'
+    #   meta_content_scope: urtext.inline_meta_value
+    - match: \)
+      scope: dynamic-definition-parens
+      pop: true   
+    - match: <
+      push: datestamp
+    - match: \)
+      scope: dynamic-definition-parens
+      pop: true
+
+  function-key-value-keyword-parameters:
+    - include: dynamic-keyword
+    - include: key-value 
+    - include: datestamp
+    - include: asterisk
+    - match: \)
+      scope: dynamic-definition-parens
+      pop: true
+
+  key-value:
+    - match: '(\w+)\s?[=|~|?]\s?([^\n;\-)]+)([\n;]?)'
+      captures:
+        1: dynamic-key.urtext
+        2: dynamic-value.urtext  
+        3: dynamic-delimiter.urtext  
+
+  output-flags:
+    - match: '(-tree|-list|-collection|-search|-interlinks|-plaintext|-txt|-markdown|-md|-html)'
+      scope: dynamic-keyword.urtext
+
+  dynamic-keyword:
+    - match: '(\s)(-n(um)?|-r(everse)?|-rr?|-la(st-accessed)?|-p(reformat)?|-all|-timestamp|-t|-and|-or|-all_projects|-\*p|-multiline_meta|-mm|-recursive)\b'
+      scope: dynamic-keyword.urtext
+
+  asterisk:
+    - match: '(?<=\(|\s)\*(?=\)|\s)'
+      scope: dynamic-keyword.urtext
+
+  # SHOW() function - uses only format string
+
+  function-with-format-string:
+    - match: \(
+      scope: dynamic-definition-parens
+      push: function-with-format-string-parameters
+    - match: (?<=\))
+      pop: true
+
+  function-with-format-string-parameters:
+    - meta_scope: format-string.urtext
+    - include: var-word
+    - match: \)
+      scope: dynamic-definition-parens
+      pop: true
+
+  var-word:
+    - meta_scope: format-string.urtext
+    - match: \$[A-Za-z0-9_-]+
+      scope: dynamic-def-format-var.urtext
+   
+  
+  # Functions with keywords only 
+  # SORT, TIMELINE
+
+  function-with-keywords-only:
+    - match: \(
+      scope: dynamic-definition-parens
+      push: function-with-keywords-only-parameters
+    - match: (?<=\))
+      pop: true
+
+  function-with-keywords-only-parameters:
+    - include: dynamic-keyword
+    - match: \)
+      scope: dynamic-definition-parens
+      pop: true
+
+  # Functions with node ID
+  # ID, TREE
+
+  function-with-node-id:
+    - match: \(
+      scope: dynamic-definition-parens
+      push: function-with-node-id-parameters
+    - match: (?<=\))
+      pop: true
+
+  function-with-node-id-parameters:
+    - include: node_link
+    - include: output-flags
+    - include: file_link
+    - include: node-id-in-dynamic-definition
+    - match: \)
+      scope: dynamic-definition-parens
+      pop: true
+
+  node-id-in-dynamic-definition:
+    - match: '\b[0-9,a-z]{3}\b'
+      scope: dynamic-def-node_id.urtext
+
+
+  # Functions with optional parameters
+  # ACCESS_HISTORY
+
+  function-with-optional-parameters:
+    - match: \(
+      scope: dynamic-definition-parens
+      push: function-with-keywords-only-parameters
+    - match: (?<=\))
+      pop: true
+
+  function-with-filename:
+    - match: \(
+      scope: dynamic-definition-parens
+      push: function-with-filename
+    - match: (?<=\))
+      pop: true
+
+  # Node Nesting
+
+  inline-node-1: 
+    - meta_scope: inline_node_1
+    - include: syntax-main
+    - match: '(?<!\\){'
+      scope: punctuation.section.braces.begin.inline_node_2.urtext
+      push: inline-node-2
+    - match: '(?<!\\)}'
+      scope: punctuation.section.braces.end.inline_node_1.urtext
+      pop: true
+   
+  inline-node-2: 
+    - meta_scope: inline_node_2 
+    - include: syntax-main
+    - match: '(?<!\\)}'
+      scope: punctuation.section.braces.end.inline_node_2.urtext
+      pop: true
+    - match: '(?<!\\){'
+      scope: punctuation.section.braces.begin.inline_node_3.urtext
+      push: inline-node-3
+    
+
+  inline-node-3: 
+    - meta_scope: inline_node_3
+    - include: syntax-main
+    - match: '(?<!\\)}'
+      scope: punctuation.section.braces.end.inline_node_3.urtext
+      pop: true
+    - match: '(?<!\\){'
+      scope: punctuation.section.braces.begin.inline_node_4.urtext
+      push: inline-node-4
+
+  inline-node-4: 
+    - meta_scope: inline_node_4
+    - include: syntax-main
+    - match: '(?<!\\){'
+      scope: punctuation.section.braces.begin.inline_node_5.urtext
+      push: inline-node-5
+    - match: '(?<!\\)}'
+      scope: punctuation.section.braces.end.inline_node_4.urtext
+      pop: true
+
+  inline-node-5: 
+    - meta_scope: inline_node_5
+    - include: syntax-main
+    - match: '(?<!\\)}'
+      scope: punctuation.section.braces.end.inline_node_5.urtext
+      pop: true
+
+  node_link:
+    - match: '([>]{1})([0-9,a-z]{3}\b)'
+      captures: 
+        1: link_prefix.urtext
+        2: link_id.urtext
+
+  node_pointer:
+    - match: '([>]{2})([0-9,a-z]{3}\b)'
+      captures:
+        1: pointer_prefix.urtext
+        2: pointer_id.urtext
+
+  file_link:
+    - match: '(f>{1,2})[^\s][^;]*'
+      scope: file_link.urtext
+
+  raw:
+    - match: '(`)(.*?)(`)'
+      captures: 
+        2 : raw.urtext
+
+  node_title:
+    - match: '(?<={)([^_]*?(?= _))|(^[^_{]*?(?= _))'
+      scope: node_title.urtext
+
+  link_title:
+    - meta_scope: link_title.urtext
+    - include: raw
+    - match: '(?=>[0-9,a-z]{3}\b)|\n'
+      pop: true
+
+  url: # not yet styled
+    - match: '[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)'
+      scope: url_link.urtext
+
+  task-status:
+    - match: '\s(DONE|REMOVED|TODO|IN PROGRESS)'
+      scope: markup.bold
+
+  meta-key-terminator:
+    - match: ';'
+      scope: punctuation.terminator.urtext
+
+  tagname-separator:
+    - match: ';'
+      scope: entity.name.tagname_separator.urtext
+
+  tagvalue-separator:
+    - match: '\|'
+      scope: entity.name.value_separator.urtext
+
+  node_id:
+    - match: '\b[0-9,a-z]{3}\b'
+      scope: entity.name.struct.node_id.urtext
+
+  ending_node_id:
+    - match: '\b[0-9,a-z]{3}(?=})'
+      scope: entity.name.struct.node_id.urtext
+
+  other-project-link:
+    - match: '=>\"(.*?)\"'
+      scope: link.urtext.other-project
+
+  compact-node-opener:
+    - match: ^[^\S\n]*\^
+      push: compact-node
+      scope: urtext.compact_node_marker
+   
+  compact-node: 
+    - include: datestamp
+    - include: main
+    - include: inline-node-1
+    - match: .*?
+    - meta_scope: urtext.compact_node 
+    - match: $
+      pop: true
+  
+ 
+
+ 
+
