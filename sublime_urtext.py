@@ -760,26 +760,31 @@ class KeywordsCommand(UrtextTextCommand):
         window = self.view.window()
         s = urtext_get('keywords',  {'project':get_path(self.view)})
         keyphrases = list(s['keyphrases'].keys())
-        
+        self.chosen_keyphrase = ''
 
         def multiple_selections(selection):
             open_urtext_node(self.view, 
                 self.second_menu.full_menu[selection].filename,
                 self.second_menu.full_menu[selection].node_id,
+                position=self.second_menu.full_menu[selection].position,
+                highlight=self.chosen_keyphrase
                 )
 
         def result(i):
-            if len(s['keyphrases'][keyphrases[i]]) == 1:
+            self.chosen_keyphrase = keyphrases[i]
+            if len(s['keyphrases'][self.chosen_keyphrase]) == 1:
                 node_id =s['keyphrases'][keyphrases[i]][0]
                 open_urtext_node(
                     self.view,     
                     s['nodes'][node_id]['filename'],
-                    node_id
+                    node_id,
+                    position=s['nodes'][node_id]['position'],
+                    highlight=self.chosen_keyphrase
                     )
             else:
                 self.second_menu = NodeBrowserMenu(
                     project=get_path(self.view), 
-                    nodes=s['keyphrases'][keyphrases[i]])
+                    nodes=s['keyphrases'][self.chosen_keyphrase])
 
                 show_panel(
                     window, 
@@ -1028,13 +1033,30 @@ class TraverseFileTree(EventListener):
 """
 Utility functions
 """
-def open_urtext_node(view, filename, node_id, project=None, position=0):
+def open_urtext_node(
+    view, 
+    filename, 
+    node_id, 
+    project=None,
+    position=0, 
+    highlight=''):
     
     file_view = view.window().find_open_file(filename)
     if not file_view:
         file_view = view.window().open_file(filename)
     view.window().focus_view(file_view)
     center_node(file_view, position)
+
+    def highlight_callback():
+        if not file_view.is_loading():
+            highlight_phrase(file_view, highlight)
+        else:
+            sublime.set_timeout(lambda: highlight_callback(), 30) 
+
+    if highlight:
+        highlight_callback()
+
+
     return file_view
     """
     Note we do not involve this function with navigation, since it is
@@ -1097,7 +1119,13 @@ def get_node_id(view):
         s = urtext_get('id-from-position', { 'filename' : filename, 'position' : position})
         return s['id']
 
-
+def highlight_phrase(view, phrase):
+    regions = view.find_all(phrase, flags=sublime.IGNORECASE)
+    view.add_regions(
+        'urtext_highlight', 
+        regions, 
+        'urtext', 
+        )
 
 class UrtextCompletions(EventListener):
 
