@@ -27,7 +27,6 @@ import webbrowser
 from sublime_plugin import EventListener
 import urllib
 import json
-from dateutil import parser
 
 _SublimeUrtextWindows = {}
 urtext_initiated = False
@@ -114,9 +113,6 @@ class MoveFileToAnotherProjectCommand(UrtextTextCommand):
         if last_node:
             open_urtext_node(self.view, last_node)
 
-        #DEBUGGING
-        print(last_node)
-
         if s['success'] != 'True':
             sublime.message_dialog('File was moved but error occured. Check the console.')
         else:
@@ -127,7 +123,8 @@ class UrtextHomeCommand(sublime_plugin.TextCommand):
     
     def run(self, view):
         s = urtext_get('home', {'project':get_path(self.view)})
-        open_urtext_node(self.view, s['filename'], s['nav_current'], s['position'])
+        if 'filename' in s:
+            open_urtext_node(self.view, s['filename'], s['nav_current'], s['position'])
 #DONE
 class NavigateBackwardCommand(sublime_plugin.TextCommand):
 
@@ -167,6 +164,7 @@ class OpenUrtextLinkCommand(sublime_plugin.TextCommand):
 
         if kind == 'FILE':
             open_external_file(s['link'])
+
 #DONE
 # class TakeSnapshot(EventListener):
 
@@ -316,9 +314,7 @@ class TraverseHistoryView(EventListener):
 class NodeBrowserCommand(sublime_plugin.TextCommand):
     
     def run(self, edit):
-        print(get_path(self.view))
         self.menu = NodeBrowserMenu(project=get_path(self.view))
-        print(self.menu)
         show_panel(
             self.view.window(), 
             self.menu.display_menu, 
@@ -352,7 +348,6 @@ class NodeBrowserMenu:
         self.full_menu = make_node_menu(
             project=project,
             nodes=nodes)
-        self.full_menu = sorted(self.full_menu, key=lambda n: n.date, reverse=True)
         self.display_menu = make_display_menu(self.full_menu)
 
 #TODO fix, returns all nodes
@@ -480,21 +475,20 @@ def add_inline_node(view,
         new_cursor_position = sublime.Region(region.a + 3, region.a + 3 ) 
         view.sel().add(new_cursor_position) 
     return s['id']
+
 #DONE
 class RenameFileCommand(UrtextTextCommand):
 
     def run(self, view):
         old_filename = self.view.file_name()
-        print(old_filename)
         s = urtext_get('rename-file', { 'old_filename' : old_filename})
-        print(s)
         self.view.retarget(s['new-filename'])
 
 class NodeInfo():
 
     def __init__(self, node):    
         self.title = node['title']
-        self.date = parser.parse(node['date'])
+        self.date = node['date']
         self.filename = node['filename']
         self.position = int(node['position'])
         self.node_id = node['id']
@@ -504,8 +498,9 @@ def make_node_menu(project='', nodes=''):
 
     s = urtext_get('nodes', { 'project' : project})
     menu = []
-    for node_id in s['nodes']:
-        menu.append(NodeInfo(s['nodes'][node_id]))
+    for node in s['nodes']:
+        if nodes == '' or node['id'] in nodes:
+            menu.append(NodeInfo(node))
     return menu
     
  
@@ -515,7 +510,7 @@ def make_display_menu(menu):
         item.position = int(item.position)
         new_item = [
             item.title,
-            item.project_title + ' - ' + item.date.strftime('<%a., %b. %d, %Y, %I:%M %p>'),      
+            item.project_title + ' - ' + item.date,      
         ]
         display_menu.append(new_item)
     return display_menu
@@ -574,7 +569,6 @@ class CopyLinkToHereWithProjectCommand(UrtextTextCommand):
             max_width=1800, 
             max_height=1000 
             )
-
 
 def get_contents(view):
     if view != None:
@@ -759,6 +753,41 @@ class RandomNodeCommand(UrtextTextCommand):
     def run(self, edit):
         s = urtext_get('random-node', {'project':get_path(self.view)})
         open_urtext_node(self.view, s['filename'], s['node_id'])
+
+# ADDED
+class KeywordsCommand(UrtextTextCommand):
+    def run(self, edit):
+        window = self.view.window()
+        s = urtext_get('keywords',  {'project':get_path(self.view)})
+        keyphrases = list(s['keyphrases'].keys())
+        
+
+        def multiple_selections(selection):
+            open_urtext_node(self.view, 
+                self.second_menu.full_menu[selection].filename,
+                self.second_menu.full_menu[selection].node_id,
+                )
+
+        def result(i):
+            if len(s['keyphrases'][keyphrases[i]]) == 1:
+                node_id =s['keyphrases'][keyphrases[i]][0]
+                open_urtext_node(
+                    self.view,     
+                    s['nodes'][node_id]['filename'],
+                    node_id
+                    )
+            else:
+                self.second_menu = NodeBrowserMenu(
+                    project=get_path(self.view), 
+                    nodes=s['keyphrases'][keyphrases[i]])
+
+                show_panel(
+                    window, 
+                    self.second_menu.display_menu, 
+                    multiple_selections)
+
+        window.show_quick_panel(keyphrases, result)
+
 
 #DONE
 class ToggleTraverse(UrtextTextCommand):
@@ -1069,26 +1098,24 @@ def get_node_id(view):
         return s['id']
 
 
-# class UrtextCompletions(EventListener):
 
-#     def on_query_completions(self, view, prefix, locations):
-#         if not _UrtextProjectList or not _UrtextProjectList.current_project:
-#             return
-#         current_path = os.path.dirname(view.file_name())
-#         if _UrtextProjectList.get_project(current_path):
-#             subl_completions = []
-#             proj_completions = _UrtextProjectList.get_all_meta_pairs()
-#             for c in proj_completions:
-#                 t = c.split('::')
-#                 if len(t) > 1:
-#                     subl_completions.append([t[1]+'\t'+c, c])
-#             title_completions = _UrtextProjectList.current_project.title_completions
-#             for t in title_completions:
-#                 subl_completions.append([t[0],t[1]])
-#             completions = (subl_completions, sublime.INHIBIT_WORD_COMPLETIONS)
-    
-#             return completions
-#         return []
+class UrtextCompletions(EventListener):
+
+    def on_query_completions(self, view, prefix, locations):
+        #s = urtext_get('completions',{'project':get_path(view)} )
+        s = urtext_get('keywords',{'project':get_path(view)} )
+        subl_completions = []
+        proj_completions = s['keyphrases']
+        for c in proj_completions:
+            t = c.split('::')
+            if len(t) > 1:
+                subl_completions.append([t[1]+'\t'+c, c])
+        # title_completions = s['titles']
+        # for t in title_completions:
+        #     subl_completions.append([t[0],t[1]])
+        # completions = (subl_completions, sublime.INHIBIT_WORD_COMPLETIONS)
+       
+        return subl_completions
 
 class UrtextSaveListener(EventListener):
 
@@ -1097,7 +1124,6 @@ class UrtextSaveListener(EventListener):
         #self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
      
     def on_post_save_async(self, view):
-        print(view.file_name())
         s = urtext_get('modified', {'filename' : view.file_name() })
 
         # if s['is_async'] == 'True':
