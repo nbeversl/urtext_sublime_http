@@ -34,7 +34,6 @@ contexts:
     - match: '\|\s'
       push: link_title
     
-   
     - match: '(?<=::)'
       push: metadata-value
 
@@ -103,11 +102,11 @@ contexts:
     - include: tagvalue-separator
     - include: node_link
     - include: file_link    
-    - match: ;|\n|(?=( [a-z,0-9]{3})?\})
+    - match: ;|\n|(?=( @[a-z,0-9]{3})?)
       pop: true
 
   minimal-node-id:
-    - match: '(?:\s?)@[0-9,a-z]{3}\b'
+    - match: '(^|\s)@[0-9,a-z]{3}\b'
       scope: urtext.minimal_node_id
 
   datestamp:
@@ -188,8 +187,7 @@ contexts:
     - include: other-project-link
     - include: compact-node-opener
     - include: ending_node_id
-    # - match: '(?<=::)([^\)])*'
-    #   meta_content_scope: urtext.inline_meta_value
+ 
     - match: \)
       scope: dynamic-definition-parens
       pop: true   

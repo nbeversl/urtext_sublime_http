@@ -6,6 +6,7 @@
     { "caption": "Urtext: Home", "command" :"urtext_home"},
     { "caption": "Urtext: Toggle Traverse Mode", "command":"toggle_traverse"},
     { "caption": "Urtext: Select Project", "command" :"list_projects"},
+    { "caption": "Urtext: Associate", "command" :"associate"},
     //{ "caption": "Urtext: To Source Node", "command" :"to_source_node"},
 
     /* Linking */

@@ -104,7 +104,6 @@ class OpenUrtextLinkCommand(sublime_plugin.TextCommand):
         column = self.view.rowcol(position)[1]
         full_line = self.view.substr(self.view.line(self.view.sel()[0]))
         s = urtext_get('get-link-set-project', {'line' : full_line, 'column' : column})
-        
         kind = s['link_kind']
         if kind == 'EDITOR_LINK':
             file_view = self.view.window().open_file(s['link'])
@@ -237,6 +236,7 @@ class TraverseHistoryView(EventListener):
         self.file_view.run_command("right_delete")
         for line in state.split('\n'):
             self.file_view.run_command("append", {"characters": line+ "\n" })
+
 class NodeBrowserCommand(sublime_plugin.TextCommand):
     
     def run(self, edit):
@@ -245,6 +245,7 @@ class NodeBrowserCommand(sublime_plugin.TextCommand):
             self.view.window(), 
             self.menu.display_menu, 
             self.open_the_file)
+
     def open_the_file(self, selected_option):        
         selected_item = self.menu.full_menu[selected_option]
         s = urtext_get('set-project', { 'title' : selected_item.project_title })
@@ -254,6 +255,7 @@ class NodeBrowserCommand(sublime_plugin.TextCommand):
             selected_item.filename, 
             selected_item.node_id, 
             position=selected_item.position)
+
 def show_panel(window, menu, main_callback):
     """ shows a quick panel with an option to cancel if -1 """
     def private_callback(index):
@@ -270,6 +272,7 @@ class NodeBrowserMenu:
             project=project,
             nodes=nodes)
         self.display_menu = make_display_menu(self.full_menu)
+
 #TODO fix, returns all nodes
 class BacklinksBrowser(NodeBrowserCommand):
     def run(self, view):
@@ -284,6 +287,7 @@ class BacklinksBrowser(NodeBrowserCommand):
                 self.view.window(), 
                 self.menu.display_menu, 
                 self.open_the_file)
+
 #TODO fix, returns all nodes
 class ForwardlinksBrowser(NodeBrowserCommand):
     def run(self, view):
@@ -298,6 +302,7 @@ class ForwardlinksBrowser(NodeBrowserCommand):
             self.view.window(), 
             self.menu.display_menu, 
             self.open_the_file)
+
 class AllProjectsNodeBrowser(NodeBrowserCommand):
     
     def run(self, view):
@@ -349,10 +354,9 @@ class InsertNodeCommand(sublime_plugin.TextCommand):
 
 class InsertNodeSingleLineCommand(sublime_plugin.TextCommand):
     def run(self, view):
-        add_inline_node(self.view, trailing_id=True, include_timestamp=False)    
+        add_inline_node(self.view, include_timestamp=False)    
 
 def add_inline_node(view, 
-    trailing_id=False,
     include_timestamp=True,
     locate_inside=True):
        
@@ -360,7 +364,6 @@ def add_inline_node(view,
     selection = view.substr(region)
     s = urtext_get('add-inline-node', {
         'contents': selection,
-        'trailing_id' : str(trailing_id),
         'include_timestamp' : str(include_timestamp)
         })
     
@@ -384,16 +387,19 @@ class NodeInfo():
         self.position = int(node['position'])
         self.node_id = node['id']
         self.project_title = node['project_title']
+
 def make_node_menu(project='', nodes=''):
-    s = urtext_get('nodes', { 'project' : project})
+    if nodes == '':
+        s = urtext_get('nodes', { 'project' : project})
+        nodes = s['nodes']
     menu = []
-    for node in s['nodes']:
-        if nodes == '' or node['id'] in nodes:
-            menu.append(NodeInfo(node))
+    for node in nodes:
+        menu.append(NodeInfo(node))
     return menu
     
  
 def make_display_menu(menu):
+
     display_menu = []
     for item in menu:
         item.position = int(item.position)
@@ -480,6 +486,7 @@ class DeleteThisNodeCommand(UrtextTextCommand):
             self.view.set_scratch(True)
         self.view.window().run_command('close_file')
         urtext_get('delete-file', {'filename' : file_name})
+
 class InsertTimestampCommand(UrtextTextCommand):
     def run(self, edit):
         s = urtext_get('timestamp')
@@ -489,6 +496,7 @@ class InsertTimestampCommand(UrtextTextCommand):
                 self.view.insert(edit, s.a, datestamp)
             else:
                 self.view.replace(edit, s, datestamp)
+
 class ConsolidateMetadataCommand(UrtextTextCommand):
     def run(self, edit):
         self.view.run_command('save')  # TODO insert notification
@@ -520,6 +528,7 @@ class InsertDynamicNodeDefinitionCommand(UrtextTextCommand):
         self.view.sel().clear()
         new_cursor_position = sublime.Region(position + 12, position + 12) 
         self.view.sel().add(new_cursor_position) 
+
 class TagFromOtherNodeCommand(UrtextTextCommand):
     def run(self, edit):
         self.view.run_command('save')
@@ -541,7 +550,7 @@ class AddNodeIdCommand(UrtextTextCommand):
     def run(self, edit):
         s = urtext_get('next-id', {'project':get_path(self.view)})
         self.view.run_command("insert_snippet",
-                              {"contents": "id::" + s['node_id']})
+                              {"contents": "@" + s['node_id']})
 #REWRITE
 class OpenUrtextLogCommand(UrtextTextCommand):
     def run(self, edit):
@@ -577,12 +586,10 @@ class CompactNodeCommand(UrtextTextCommand):
 
 class PopNodeCommand(UrtextTextCommand):
     def run(self, edit):
-        filename = self.view.file_name()
-        position = self.view.sel()[0].a
         s = urtext_get('pop-node', {
             'project':get_path(self.view), 
-            'filename' : filename,
-            'position' :position,
+            'filename' : self.view.file_name(),
+            'position' : self.view.sel()[0].a,
             })
 class PullNodeCommand(UrtextTextCommand):
     def run(self, edit):
@@ -634,6 +641,38 @@ class KeywordsCommand(UrtextTextCommand):
                     multiple_selections)
         window.show_quick_panel(keyphrases, result)
 
+# ADDED
+
+class AssociateCommand(NodeBrowserCommand):
+
+     def run(self, edit):
+        position = self.view.sel()[0].a
+        column = self.view.rowcol(position)[1]
+        full_line = self.view.substr(self.view.line(self.view.sel()[0]))
+        s = urtext_get('associate', {
+            'project':get_path(self.view),
+            'string' : full_line,
+            'filename' : self.view.file_name(),
+            'position' : self.view.sel()[0].a,
+            })
+
+        self.menu = NodeBrowserMenu(
+                project=get_path(self.view), 
+                nodes=s['nodes'])
+
+        show_panel(
+            self.view.window(), 
+            self.menu.display_menu, 
+            self.open_the_file)
+       
+     def open_the_file(self, selected_option):        
+        selected_item = self.menu.full_menu[selected_option]
+        s = urtext_get('nav', {'node' : selected_item.node_id })
+        open_urtext_node(
+            self.view, 
+            selected_item.filename, 
+            selected_item.node_id, 
+            position=selected_item.position)
 
 class ToIcs(UrtextTextCommand):
     def run(self):
