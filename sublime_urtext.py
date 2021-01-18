@@ -268,6 +268,7 @@ def show_panel(window, menu, main_callback):
 class NodeBrowserMenu:
     """ custom class to store more information on menu items than is displayed """
     def __init__(self, project='', nodes=''):
+
         self.full_menu = make_node_menu(
             project=project,
             nodes=nodes)
@@ -379,8 +380,9 @@ class RenameFileCommand(UrtextTextCommand):
         old_filename = self.view.file_name()
         s = urtext_get('rename-file', { 'old_filename' : old_filename})
         self.view.retarget(s['new-filename'])
+
 class NodeInfo():
-    def __init__(self, node):    
+    def __init__(self, node): 
         self.title = node['title']
         self.date = node['date']
         self.filename = node['filename']
@@ -394,6 +396,7 @@ def make_node_menu(project='', nodes=''):
         nodes = s['nodes']
     menu = []
     for node in nodes:
+        print(node)
         menu.append(NodeInfo(node))
     return menu
     
@@ -606,7 +609,7 @@ class RandomNodeCommand(UrtextTextCommand):
     def run(self, edit):
         s = urtext_get('random-node', {'project':get_path(self.view)})
         open_urtext_node(self.view, s['filename'], s['node_id'])
-# ADDED
+
 class KeywordsCommand(UrtextTextCommand):
     def run(self, edit):
         window = self.view.window()
@@ -620,6 +623,7 @@ class KeywordsCommand(UrtextTextCommand):
                 position=self.second_menu.full_menu[selection].position,
                 highlight=self.chosen_keyphrase
                 )
+
         def result(i):
             self.chosen_keyphrase = keyphrases[i]
             if len(s['keyphrases'][self.chosen_keyphrase]) == 1:
@@ -632,9 +636,10 @@ class KeywordsCommand(UrtextTextCommand):
                     highlight=self.chosen_keyphrase
                     )
             else:
+                nodes = [s['nodes'][nid] for nid in s['keyphrases'][self.chosen_keyphrase]]
                 self.second_menu = NodeBrowserMenu(
                     project=get_path(self.view), 
-                    nodes=s['keyphrases'][self.chosen_keyphrase])
+                    nodes=nodes)
                 show_panel(
                     window, 
                     self.second_menu.display_menu, 
@@ -785,22 +790,23 @@ def highlight_phrase(view, phrase):
         'urtext', 
         )
 
-class UrtextCompletions(EventListener):
-    def on_query_completions(self, view, prefix, locations):
-        #s = urtext_get('completions',{'project':get_path(view)} )
-        s = urtext_get('keywords',{'project':get_path(view)} )
-        subl_completions = []
-        proj_completions = s['keyphrases']
-        for c in proj_completions:
-            t = c.split('::')
-            if len(t) > 1:
-                subl_completions.append([t[1]+'\t'+c, c])
-        # title_completions = s['titles']
-        # for t in title_completions:
-        #     subl_completions.append([t[0],t[1]])
-        # completions = (subl_completions, sublime.INHIBIT_WORD_COMPLETIONS)
+# add a timer
+# class UrtextCompletions(EventListener):
+#     def on_query_completions(self, view, prefix, locations):
+#         #s = urtext_get('completions',{'project':get_path(view)} )
+#         s = urtext_get('keywords',{'project':get_path(view)} )
+#         subl_completions = []
+#         proj_completions = s['keyphrases']
+#         for c in proj_completions:
+#             t = c.split('::')
+#             if len(t) > 1:
+#                 subl_completions.append([t[1]+'\t'+c, c])
+#         # title_completions = s['titles']
+#         # for t in title_completions:
+#         #     subl_completions.append([t[0],t[1]])
+#         # completions = (subl_completions, sublime.INHIBIT_WORD_COMPLETIONS)
        
-        return subl_completions
+#         return subl_completions
 
 
 class UrtextSaveListener(EventListener):
