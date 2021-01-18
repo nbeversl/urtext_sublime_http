@@ -396,7 +396,6 @@ def make_node_menu(project='', nodes=''):
         nodes = s['nodes']
     menu = []
     for node in nodes:
-        print(node)
         menu.append(NodeInfo(node))
     return menu
     
@@ -568,24 +567,31 @@ class OpenUrtextLogCommand(UrtextTextCommand):
                 else:
                     sublime.set_timeout(lambda: go_to_end(view), 10)
             go_to_end(self.view)
+
 class CompactNodeCommand(UrtextTextCommand):
+
     def run(self, edit):
-    
         region = self.view.sel()[0]
         selection = self.view.substr(region)
-        line = self.view.line(region) # get full line
-        next_line_down = line.b
+        line_region = self.view.line(region) # get full line region
+        line_contents = self.view.substr(line_region)
         s = urtext_get('compact-node',{
+            'filename':self.view.file_name(),
+            'position': self.view.sel()[0].a,
             'project':get_path(self.view), 
-            'selection' : selection
+            'selection' : line_contents,
             })
-        self.view.sel().clear()
-        self.view.sel().add(next_line_down) 
-        self.view.run_command("insert_snippet",{"contents": '\n'+s['new_node_contents']})
-        new_cursor_position = sublime.Region(next_line_down + 3, next_line_down + 3) 
-        self.view.sel().clear()
-        self.view.sel().add(new_cursor_position) 
-        self.view.erase(edit, region)
+        if s['replace']:
+            self.view.erase(edit, line_region)
+            self.view.run_command("insert_snippet",{"contents": '\n'+s['contents']})
+        else:
+            next_line_down = line_region.b    
+            self.view.sel().clear()
+            self.view.sel().add(next_line_down) 
+            self.view.run_command("insert_snippet",{"contents": '\n'+s['contents']})            
+            new_cursor_position = sublime.Region(next_line_down + 3, next_line_down + 3) 
+            self.view.sel().clear()
+            self.view.sel().add(new_cursor_position) 
 
 class PopNodeCommand(UrtextTextCommand):
     def run(self, edit):
