@@ -129,18 +129,19 @@ class OpenUrtextLinkCommand(sublime_plugin.TextCommand):
 #         self.last_time = now 
 #         take_snapshot(view, os.path.dirname(view.file_name()))
 
-def take_snapshot(view, project):
-    contents = get_contents(view)
+def take_snapshot(view):
     if view:
         filename = os.path.basename(view.file_name())
         s = urtext_get('snapshot', {
-            'project': project,
-            'filename':filename, 
-            'contents':contents})
-        
+            'project': os.path.dirname(view.file_name()),
+            'filename':view.file_name(), 
+            'contents':get_contents(view)})
+        return s['success']
+    return False  
+
 class ToggleHistoryTraverse(UrtextTextCommand):
     """ Toggles history traversing on/off """
-    def run(self):
+    def run(self, edit):
         global is_browsing_history
         window = self.view.window()
         history_view = None
@@ -165,7 +166,7 @@ class ToggleHistoryTraverse(UrtextTextCommand):
     
         is_browsing_history = True
         # take a snapshot now so we don't mess up what's there, in case it isn't saved:
-        take_snapshot(self.view, self._UrtextProjectList.current_project)
+        #take_snapshot(self.view, self._UrtextProjectList.current_project)
         groups = self.view.window().num_groups()
         size_to_groups(groups + 1, self.view)
         window = self.view.window()
@@ -200,15 +201,21 @@ class TraverseHistoryView(EventListener):
         self.content_group = self.history_group -1
         # TAB of the content (left) view. ("sheet" = tab)        
         self.content_tab = history_view.window().active_sheet_in_group(self.content_group)
+
         # View of the file in the content tab 
         self.file_view = self.content_tab.view()
         filename = self.file_view.file_name()
         if self.current_file != filename:
             self.current_file = filename
-        new_history = _UrtextProjectList.current_project.get_history(self.current_file)
+        s = urtext_get('get-history', {
+                'project' : os.path.dirname(filename),
+                'filename' : filename,
+            })
+        
+        new_history = json.loads(s['history'])
         if not new_history:
             return None
-        ts_format =  _UrtextProjectList.current_project.settings['timestamp_format']
+        ts_format =  s['timestamp-format']
         string_timestamps = [datetime.datetime.fromtimestamp(int(i)).strftime(ts_format) for i in sorted(new_history.keys(),reverse=True)]
         if string_timestamps != self.string_timestamps or not get_contents(history_view).strip():
             self.string_timestamps = string_timestamps
@@ -230,8 +237,14 @@ class TraverseHistoryView(EventListener):
         if line in self.string_timestamps:             
             index = self.string_timestamps.index(line) 
             self.show_state(index)
+    
     def show_state(self, index):
-        state = _UrtextProjectList.current_project.apply_patches(self.history, distance_back=index)
+
+        s = urtext_get('apply-patches', {
+            'history' : json.dumps(self.history),
+            'distance-back' : index
+            })
+        state = s['state']
         self.file_view.run_command("select_all")
         self.file_view.run_command("right_delete")
         for line in state.split('\n'):
@@ -584,6 +597,11 @@ class CompactNodeCommand(UrtextTextCommand):
         if s['replace']:
             self.view.erase(edit, line_region)
             self.view.run_command("insert_snippet",{"contents": '\n'+s['contents']})
+            region = self.view.sel()[0]
+            print(region)
+            self.view.sel().clear()
+            self.view.sel().add(sublime.Region(region.a-5, region.b-5))
+
         else:
             next_line_down = line_region.b    
             self.view.sel().clear()
@@ -796,83 +814,33 @@ def highlight_phrase(view, phrase):
         'urtext', 
         )
 
-# add a timer
-# class UrtextCompletions(EventListener):
-#     def on_query_completions(self, view, prefix, locations):
-#         #s = urtext_get('completions',{'project':get_path(view)} )
-#         s = urtext_get('keywords',{'project':get_path(view)} )
-#         subl_completions = []
-#         proj_completions = s['keyphrases']
-#         for c in proj_completions:
-#             t = c.split('::')
-#             if len(t) > 1:
-#                 subl_completions.append([t[1]+'\t'+c, c])
-#         # title_completions = s['titles']
-#         # for t in title_completions:
-#         #     subl_completions.append([t[0],t[1]])
-#         # completions = (subl_completions, sublime.INHIBIT_WORD_COMPLETIONS)
-       
-#         return subl_completions
-
-
 class UrtextSaveListener(EventListener):
     def __init__(self):   
-        pass
-        #self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-     
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)     
+        self.completions = []
+        self.title_completions = []
     def on_post_save_async(self, view):
-        s = urtext_get('modified', {'filename' : view.file_name() })
-        # if s['is_async'] == 'True':
-        #     if result:
-        #         renamed_file = result.result()
-        #         if renamed_file and renamed_file != filename:
-        #             view.set_scratch(True) # already saved
-        #             view.close()
-        #             new_view = view.window().open_file(renamed_file)
-        #         else:
-        #             self.executor.submit(refresh_open_file, filename, view)
-        # else:
-        #     if result and result != filename:
-        #         window = view.window()
-        #         view.set_scratch(True) # already saved
-        #         view.close()
-        #         new_view = window.open_file(result)
-        #     else:
-        #         self.executor.submit(refresh_open_file, filename, view)
+        filename = view.file_name()
+        s = urtext_get('modified', {'filename' : filename })
+        self.completions = s['completions']
+        self.titles = s['titles']
+        renamed_file = s['filename']
+        if renamed_file and renamed_file != os.path.basename(filename):
+            view.set_scratch(True) # already saved
+            view.close()
+            new_view = view.window().open_file(renamed_file)
+        else:
+            self.executor.submit(refresh_open_file, filename, view)
         
-        #always take a snapshot manually on save
-        #take_snapshot(view, self._UrtextProjectList.current_project)
-            
-# class KeepPosition(EventListener):
-#     @refresh_project_event_listener
-#     def on_modified(self, view):
-#         if not view:
-#             return
-#         position = view.sel()
-#         def restore_position(view, position):
-#             if not view.is_loading():
-#                 view.show(position)
-#             else:
-#                 sublime.set_timeout(lambda: restore_position(view, position), 10)
-#         restore_position(view, position)
-
-
-# class JumpToSource(EventListener):
-#     @refresh_project_event_listener
-#     def on_modified(self, view):
-#         """
-#         problematic -- this doesn't work if the view is dirty.
-#         TODO: revise
-#         For now, making available only if few is not dirty. However this should
-#         still be usable in many cases.
-#         """
-#         if not view:
-#             return
-#         position = view.sel()[0].a
-#         filename = view.file_name()
-#         if filename:
-#             destination_node = _UrtextProjectList.is_in_export(filename, position)
-#             if destination_node:
-#                 view.window().run_command('undo') # undo the manual change made to the view
-#                 open_urtext_node(view, destination_node[0])
-#                 center_node(view, destination_node[1])
+        take_snapshot(view)
+        
+    def on_query_completions(self, view, prefix, locations):
+        subl_completions = []
+        for c in self.completions:
+            t = c.split('::')
+            if len(t) > 1:
+                subl_completions.append([t[1]+'\t'+c, c])
+        for t in self.title_completions:
+            subl_completions.append([t[0],t[1]])
+        completions = (subl_completions, sublime.INHIBIT_WORD_COMPLETIONS)       
+        return completions
