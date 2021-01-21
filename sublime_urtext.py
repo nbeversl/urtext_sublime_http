@@ -130,7 +130,7 @@ class OpenUrtextLinkCommand(sublime_plugin.TextCommand):
 #         take_snapshot(view, os.path.dirname(view.file_name()))
 
 def take_snapshot(view):
-    if view:
+    if view and view.file_name():
         filename = os.path.basename(view.file_name())
         s = urtext_get('snapshot', {
             'project': os.path.dirname(view.file_name()),
@@ -596,12 +596,10 @@ class CompactNodeCommand(UrtextTextCommand):
             })
         if s['replace']:
             self.view.erase(edit, line_region)
-            self.view.run_command("insert_snippet",{"contents": '\n'+s['contents']})
+            self.view.run_command("insert_snippet",{"contents": s['contents']})
             region = self.view.sel()[0]
-            print(region)
             self.view.sel().clear()
             self.view.sel().add(sublime.Region(region.a-5, region.b-5))
-
         else:
             next_line_down = line_region.b    
             self.view.sel().clear()
