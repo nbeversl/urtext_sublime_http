@@ -30,7 +30,11 @@ URL = 'http://127.0.0.1:5000/'
 node_id_regex = r'\b[0-9,a-z]{3}\b'
 
 def urtext_get(endpoint, values={}):
-    data = urllib.parse.urlencode(values)
+    try:
+        data = urllib.parse.urlencode(values)
+    except urllib.error.URLError:
+        ('No Urtext project serving')
+        return {'':''}
     data = data.encode('ascii') 
     r = urllib.request.urlopen(URL + endpoint, data)
     response = r.read().decode('utf-8')
@@ -556,11 +560,13 @@ class ReIndexFilesCommand(UrtextTextCommand):
     def run(self, edit):
         s = urtext_get('reindex',{'project':get_path(self.view)})
         renamed_files = s['renamed-files']
+        print(renamed_files)
         for view in self.view.window().views():
             if view.file_name() == None:
                 continue
-            if os.path.basename(view.file_name()) in renamed_files:
-                view.retarget(renamed_files[os.path.basename(view.file_name())])
+            if view.file_name() in renamed_files:
+                view.retarget(renamed_files[view.file_name()])
+
 class AddNodeIdCommand(UrtextTextCommand):
     def run(self, edit):
         s = urtext_get('next-id', {'project':get_path(self.view)})
@@ -817,8 +823,14 @@ class UrtextSaveListener(EventListener):
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)     
         self.completions = []
         self.title_completions = []
-    def on_post_save_async(self, view):
+    
+    def on_post_save(self, view):
+        self.executor.submit(self._urtext_save, view)
+
+    def _urtext_save(self, view):
         filename = view.file_name()
+        if not filename:
+            return
         s = urtext_get('modified', {'filename' : filename })
         self.completions = s['completions']
         self.titles = s['titles']
@@ -842,3 +854,8 @@ class UrtextSaveListener(EventListener):
             subl_completions.append([t[0],t[1]])
         completions = (subl_completions, sublime.INHIBIT_WORD_COMPLETIONS)       
         return completions
+
+    def on_deactivated(self, view):
+        urtext_settings = sublime.load_settings('urtext.sublime-settings')
+        if urtext_settings.get('save_on_focus_change'):
+             self.executor.submit(self._urtext_save, view)

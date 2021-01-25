@@ -1,6 +1,6 @@
 import sublime
 import sublime_plugin
-
+from .sublime_urtext import urtext_get
 
 class DebugCommand(sublime_plugin.TextCommand):
 
@@ -17,3 +17,10 @@ class DebugCommand(sublime_plugin.TextCommand):
         print(self._UrtextProjectList.current_project.nodes[node_id].compact)
         print(self._UrtextProjectList.current_project.nodes[node_id].export_points)
         self._UrtextProjectList.current_project.nodes[node_id].metadata.log()
+
+
+class UrtextTurnOffThreadingCommand(sublime_plugin.TextCommand):
+
+    def run(self, view):
+        s=urtext_get('/async-off')
+        print(s)

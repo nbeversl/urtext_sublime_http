@@ -66,7 +66,6 @@ contexts:
       embed: Packages/HTML/HTML.sublime-syntax
       embed_scope: urtext.html
       escape: '%%-END-HTML'
-
       escape_captures: 0
     
     - match: '%%-JSON'
@@ -83,6 +82,13 @@ contexts:
       escape: '%%-END-PLAINTEXT'
       escape_captures: 0
 
+    - match: '%%-PHP'
+      scope: urtext.pass_marker
+      embed: Packages/PHP/PHP Source.sublime-syntax
+      embed_scope: urtext.php
+      escape: '%%-END-PHP'
+      escape_captures: 0
+
     - match: '%%-DOC'
       scope: urtext.pass_marker
       escape: '%%-END-DOC'
@@ -93,6 +99,8 @@ contexts:
       embed_scope: urtext.text
       escape: '%%-END-[A-Z-]*'
       escape_captures: 0
+
+
 
   
   # Metadata  
