@@ -32,7 +32,7 @@ node_id_regex = r'\b[0-9,a-z]{3}\b'
 def urtext_get(endpoint, values={}):
     try:
         data = urllib.parse.urlencode(values)
-    except urllib.error.URLError:
+    except URLError:
         ('No Urtext project serving')
         return {'':''}
     data = data.encode('ascii') 
