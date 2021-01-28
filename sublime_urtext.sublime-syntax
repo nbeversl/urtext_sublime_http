@@ -18,7 +18,6 @@ contexts:
     - include: minimal-node-id
     - include: node_pointer
     - include: node_link
-    - include: link_prefix
     - include: other-project-link
     - include: file_link
     - include: shorthand_meta
@@ -195,7 +194,6 @@ contexts:
     - include: node_link
     - match:  \w+?(?=::)
       scope: urtext.meta_key
-    - include: link_prefix
     
     - include: other-project-link
     - include: compact-node-opener
@@ -213,8 +211,9 @@ contexts:
   function-key-value-keyword-parameters:
     - include: dynamic-keyword
     - include: key-value 
-    - include: datestamp
     - include: asterisk
+    - match: <[^!\s-]
+      push: datestamp
     - match: \)
       scope: dynamic-definition-parens
       pop: true
@@ -231,7 +230,7 @@ contexts:
       scope: dynamic-keyword.urtext
 
   dynamic-keyword:
-    - match: '(\s)(-n(um)?|-r(everse)?|-rr?|-la(st-accessed)?|-p(reformat)?|-all|-timestamp|-t|-and|-or|-all_projects|-\*p|-multiline_meta|-mm|-recursive)\b'
+    - match: '(\s)(-n(um)?|-r(everse)?|-rr?|-la(st-accessed)?|before|after|-p(reformat)?|-all|-timestamp|-t|-and|-or|-all_projects|-\*p|-multiline_meta|-mm|-recursive)\b'
       scope: dynamic-keyword.urtext
 
   asterisk:

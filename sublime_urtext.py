@@ -617,6 +617,7 @@ class CompactNodeCommand(UrtextTextCommand):
 
 class PopNodeCommand(UrtextTextCommand):
     def run(self, edit):
+        self.view.run_command('save')
         s = urtext_get('pop-node', {
             'project':get_path(self.view), 
             'filename' : self.view.file_name(),
@@ -855,7 +856,8 @@ class UrtextSaveListener(EventListener):
         completions = (subl_completions, sublime.INHIBIT_WORD_COMPLETIONS)       
         return completions
 
-    def on_deactivated(self, view):
-        urtext_settings = sublime.load_settings('urtext.sublime-settings')
-        if urtext_settings.get('save_on_focus_change'):
-             self.executor.submit(self._urtext_save, view)
+    # def on_deactivated(self, view):
+    #     view.run_command('save')
+    #     urtext_settings = sublime.load_settings('urtext.sublime-settings')
+    #     if urtext_settings.get('save_on_focus_change'):
+    #          self.executor.submit(self._urtext_save, view)
