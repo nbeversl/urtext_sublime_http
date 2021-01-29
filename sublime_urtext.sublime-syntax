@@ -388,7 +388,7 @@ contexts:
         2 : raw.urtext
 
   node_title:
-    - match: '(?<={)([^_]*?(?= _))|(^[^_{]*?(?= _))'
+    - match: '(?<={)([^\n{_]*?(?= _))|(^[^\n_{]*?(?= _))'
       scope: node_title.urtext
 
   link_title:

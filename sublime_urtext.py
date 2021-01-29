@@ -789,12 +789,10 @@ def get_path_from_window(window):
         return window.project_data()['folders'][0]['path']
     return None
 
-def refresh_open_file(future, view):
-    changed_files = future.result()
-    open_files = view.window().views()
-    for filename in open_files:
-        if os.path.basename(filename) in changed_files:
-            view.run_command('revert') # undocumented
+def refresh_open_file(filename, view):
+    for open_file in view.window().views():
+        if open_file == filename:
+            return view.run_command('revert') # undocumented
 
 def open_external_file(filepath):
     if sublime.platform() == "osx":
@@ -836,13 +834,13 @@ class UrtextSaveListener(EventListener):
         self.completions = s['completions']
         self.titles = s['titles']
         renamed_file = s['filename']
-        if renamed_file and renamed_file != os.path.basename(filename):
-            view.set_scratch(True) # already saved
-            view.close()
-            new_view = view.window().open_file(renamed_file)
-        else:
-            self.executor.submit(refresh_open_file, filename, view)
-        
+        # if renamed_file and renamed_file != filename:
+        #     view.set_scratch(True) # already saved
+        #     view.close()
+        #     new_view = view.window().open_file(renamed_file)
+        # else:
+        #self.executor.submit(refresh_open_file, filename, view)
+        refresh_open_file(filename, view)
         take_snapshot(view)
         
     def on_query_completions(self, view, prefix, locations):
