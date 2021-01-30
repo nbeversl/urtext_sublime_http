@@ -112,7 +112,7 @@ class OpenUrtextLinkCommand(sublime_plugin.TextCommand):
         if kind == 'EDITOR_LINK':
             file_view = self.view.window().open_file(s['link'])
         if kind == 'NODE':
-            open_urtext_node(self.view, s['filename'], s['nav_current'], s['position'])
+            open_urtext_node(self.view, s['filename'], s['nav_current'], position=s['position'])
         if kind == 'HTTP':
             success = webbrowser.get().open(s['link'])
             if not success:
@@ -816,6 +816,15 @@ def highlight_phrase(view, phrase):
         regions, 
         'urtext', 
         )
+
+class UrtextClickListener(sublime_plugin.TextCommand):
+
+    def run(edit):
+        print(self)
+    def want_event():
+        print(self.view)
+        return True
+
 
 class UrtextSaveListener(EventListener):
     def __init__(self):   
