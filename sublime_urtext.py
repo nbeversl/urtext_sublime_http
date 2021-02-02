@@ -120,6 +120,31 @@ class OpenUrtextLinkCommand(sublime_plugin.TextCommand):
         if kind == 'FILE':
             open_external_file(s['link'])
 
+
+class MouseOpenUrtextLinkCommand(sublime_plugin.TextCommand):
+    def run(self, edit, **kwargs):
+        
+        click_position = self.view.window_to_text((kwargs['event']['x'],kwargs['event']['y']))
+        region = self.view.full_line(click_position)
+        full_line = self.view.substr(region)
+        row, col = self.view.rowcol(click_position)
+        s = urtext_get('get-link-set-project', {'line' : full_line, 'column' : col})
+        kind = s['link_kind']
+        if kind == 'EDITOR_LINK':
+            file_view = self.view.window().open_file(s['link'])
+        if kind == 'NODE':
+            open_urtext_node(self.view, s['filename'], s['nav_current'], position=s['position'])
+        if kind == 'HTTP':
+            success = webbrowser.get().open(s['link'])
+            if not success:
+                self.log('Could not open tab using your "web_browser_path" setting')       
+        if kind == 'FILE':
+            open_external_file(s['link'])
+
+    def want_event(self):
+        return True
+
+
 # class TakeSnapshot(EventListener):
 #     def __init__(self):
 #         self.last_time = time.time()
@@ -372,18 +397,15 @@ class InsertNodeCommand(sublime_plugin.TextCommand):
 
 class InsertNodeSingleLineCommand(sublime_plugin.TextCommand):
     def run(self, view):
-        add_inline_node(self.view, include_timestamp=False)    
+        add_inline_node(self.view)    
 
 def add_inline_node(view, 
-    include_timestamp=True,
     locate_inside=True):
        
     region = view.sel()[0]
     selection = view.substr(region)
     s = urtext_get('add-inline-node', {
-        'contents': selection,
-        'include_timestamp' : str(include_timestamp)
-        })
+        'contents': selection })
     
     view.run_command("insert_snippet", {"contents": s['contents']})  # (whitespace)
     if locate_inside:
@@ -485,6 +507,7 @@ class NewNodeCommand(UrtextTextCommand):
     def run(self, view):
         s = urtext_get('new-node')
         new_view = self.view.window().open_file(s['filename'])
+
 class InsertLinkToNewNodeCommand(UrtextTextCommand):
     
     def run(self, view):
@@ -533,8 +556,8 @@ class InsertDynamicNodeDefinitionCommand(UrtextTextCommand):
         now = datetime.datetime.now()
         node_id = add_inline_node(
             self.view, 
-            include_timestamp=False,
             locate_inside=False)
+
         # TODO This should possibly be moved into Urtext as a utility method.
         position = self.view.sel()[0].a
         content = '\n\n[[ ID(>' + node_id + ')\n\n ]]'
@@ -817,13 +840,7 @@ def highlight_phrase(view, phrase):
         'urtext', 
         )
 
-class UrtextClickListener(sublime_plugin.TextCommand):
 
-    def run(edit):
-        print(self)
-    def want_event():
-        print(self.view)
-        return True
 
 
 class UrtextSaveListener(EventListener):
