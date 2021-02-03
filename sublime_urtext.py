@@ -63,7 +63,7 @@ class ListProjectsCommand(sublime_plugin.TextCommand):
 class MoveFileToAnotherProjectCommand(UrtextTextCommand):
     
     def run(self, view):
-        r = urtext_get('projects')
+        r = urtext_get('projects', {'project':get_path(self.view)})
         show_panel(self.window, r['projects'], self.move_file)
     def move_file(self, new_project_title):
                 
@@ -93,12 +93,12 @@ class UrtextHomeCommand(sublime_plugin.TextCommand):
             open_urtext_node(self.view, s['filename'], s['nav_current'], s['position'])
 class NavigateBackwardCommand(sublime_plugin.TextCommand):
     def run(self, view):
-        s = urtext_get('nav-back')
+        s = urtext_get('nav-back' , {'project':get_path(self.view)})
         if s['nav_current'] != 'NONE':
             open_urtext_node(self.view, s['filename'], s['nav_current'], s['position'])
 class NavigateForwardCommand(sublime_plugin.TextCommand):
     def run(self, view):
-        s = urtext_get('nav-forward')
+        s = urtext_get('nav-forward', {'project':get_path(self.view)})
         if s['nav_current'] != 'NONE':
             open_urtext_node(self.view, s['filename'], s['nav_current'], s['position'])
 
@@ -271,7 +271,8 @@ class TraverseHistoryView(EventListener):
 
         s = urtext_get('apply-patches', {
             'history' : json.dumps(self.history),
-            'distance-back' : index
+            'distance-back' : index,
+            'project':get_path(self.view)
             })
         state = s['state']
         self.file_view.run_command("select_all")
@@ -405,7 +406,7 @@ def add_inline_node(view,
     region = view.sel()[0]
     selection = view.substr(region)
     s = urtext_get('add-inline-node', {
-        'contents': selection })
+        'contents': selection, 'project':get_path(view) })
     
     view.run_command("insert_snippet", {"contents": s['contents']})  # (whitespace)
     if locate_inside:
@@ -505,7 +506,7 @@ def get_contents(view):
 
 class NewNodeCommand(UrtextTextCommand):
     def run(self, view):
-        s = urtext_get('new-node')
+        s = urtext_get('new-node', {'project' :  os.path.dirname(self.view.file_name())})
         new_view = self.view.window().open_file(s['filename'])
 
 class InsertLinkToNewNodeCommand(UrtextTextCommand):
