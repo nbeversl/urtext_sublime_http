@@ -506,13 +506,13 @@ def get_contents(view):
 
 class NewNodeCommand(UrtextTextCommand):
     def run(self, view):
-        s = urtext_get('new-node', {'project' :  os.path.dirname(self.view.file_name())})
+        s = urtext_get('new-node', {'project' : get_path(self.view)})
         new_view = self.view.window().open_file(s['filename'])
 
 class InsertLinkToNewNodeCommand(UrtextTextCommand):
     
     def run(self, view):
-        s = urtext_get('new-node')
+        s = urtext_get('new-node',{'project' : get_path(self.view)})
         self.view.run_command("insert", {"characters":'| >' + s['id']})
 
 class NewProjectCommand(UrtextTextCommand):
